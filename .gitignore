@@ -1,0 +1,38 @@
+# General
+.DS_Store
+.env
+.env.*
+*.log
+
+# Frontend (Node.js / React)
+frontend/node_modules/
+frontend/build/
+frontend/dist/
+frontend/.eslintcache
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# Backend (Python / FastAPI)
+backend/__pycache__/
+backend/*.py[cod]
+backend/*$py.class
+backend/venv/
+backend/.venv/
+backend/env/
+backend/.pytest_cache/
+backend/.coverage
+backend/htmlcov/
+backend/*.sqlite3
+
+# Vector Database (ChromaDB Local Storage)
+backend/chroma_db/
+backend/chroma_data/
+backend/vector_store/
+backend/db/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
