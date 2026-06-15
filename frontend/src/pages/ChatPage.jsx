@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Send, ArrowLeft, Bot, User, Loader2, Database } from 'lucide-react';
+import { Send, ArrowLeft, Bot, User, Loader2, Database, ChevronDown } from 'lucide-react';
 import LibraryModal from '../components/LibraryModal';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export default function ChatPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  // We can now handle multiple filenames, or just show a general title
   const filename = location.state?.filename || 'Database Documents';
 
   const [messages, setMessages] = useState([
@@ -21,6 +22,9 @@ export default function ChatPage() {
   const [isWaitingForStream, setIsWaitingForStream] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [availableDocs, setAvailableDocs] = useState([]);
+  const [selectedScope, setSelectedScope] = useState('All Documents');
+  
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -31,6 +35,26 @@ export default function ChatPage() {
     scrollToBottom();
   }, [messages, isWaitingForStream]);
 
+  // Fetch documents for the scope dropdown
+  useEffect(() => {
+    const fetchDocs = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/documents`);
+        const data = await response.json();
+        if (data.documents) {
+          setAvailableDocs(data.documents);
+          // If the currently selected scope was deleted, reset to All
+          if (selectedScope !== 'All Documents' && !data.documents.includes(selectedScope)) {
+            setSelectedScope('All Documents');
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch documents for dropdown', err);
+      }
+    };
+    fetchDocs();
+  }, [isLibraryOpen]); // Re-fetch whenever the Library modal closes
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!input.trim() || isWaitingForStream || isStreaming) return;
@@ -38,7 +62,6 @@ export default function ChatPage() {
     const userMessage = input.trim();
     setInput('');
     
-    // Add user message
     const newMessages = [...messages, { id: Date.now(), role: 'user', content: userMessage }];
     setMessages(newMessages);
     setIsWaitingForStream(true);
@@ -46,10 +69,15 @@ export default function ChatPage() {
     const aiMsgId = Date.now() + 1;
 
     try {
-      const response = await fetch('http://localhost:8000/query', {
+      const payload = { 
+        question: userMessage,
+        target_filename: selectedScope === 'All Documents' ? null : selectedScope
+      };
+
+      const response = await fetch(`${API_BASE_URL}/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: userMessage })
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) throw new Error('Network response was not ok');
@@ -57,7 +85,6 @@ export default function ChatPage() {
       setIsWaitingForStream(false);
       setIsStreaming(true);
 
-      // Add empty AI message placeholder
       setMessages(prev => [
         ...prev,
         { id: aiMsgId, role: 'ai', content: '', sources: [] }
@@ -112,7 +139,6 @@ export default function ChatPage() {
     }
   };
 
-  // Helper to remove duplicate sources (same filename and page)
   const getUniqueSources = (sources) => {
     if (!sources) return [];
     const unique = [];
@@ -149,9 +175,28 @@ export default function ChatPage() {
             <span className="truncate">Reading: {filename}</span>
           </p>
         </div>
+
+        {/* Scope Dropdown */}
+        <div className="ml-auto mr-4 relative hidden sm:block">
+          <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+            <ChevronDown className="w-4 h-4 text-zinc-400" />
+          </div>
+          <select
+            value={selectedScope}
+            onChange={(e) => setSelectedScope(e.target.value)}
+            className="appearance-none bg-black/40 border border-white/10 hover:border-white/20 text-zinc-300 text-xs rounded-xl pl-4 pr-10 py-2.5 outline-none focus:border-green-500/50 transition-all cursor-pointer max-w-[200px] truncate"
+            title="Choose which document to search"
+          >
+            <option value="All Documents">Scope: All Documents</option>
+            {availableDocs.map((doc, idx) => (
+              <option key={idx} value={doc}>Scope: {doc}</option>
+            ))}
+          </select>
+        </div>
+
         <button
           onClick={() => setIsLibraryOpen(true)}
-          className="p-2 ml-auto text-zinc-400 hover:text-white hover:bg-white/10 rounded-full transition-colors flex items-center space-x-2"
+          className="p-2 text-zinc-400 hover:text-white hover:bg-white/10 rounded-full transition-colors flex items-center space-x-2"
           title="Manage Database"
         >
           <Database className="w-5 h-5" />
@@ -175,7 +220,7 @@ export default function ChatPage() {
                   <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
                     msg.role === 'user' 
                       ? 'bg-gradient-to-br from-emerald-500 to-teal-600 ml-3' 
-                      : 'bg-white/10 border border-white/10 mr-3 mt-1' // mt-1 aligns with top of bubble
+                      : 'bg-white/10 border border-white/10 mr-3 mt-1'
                   }`}>
                     {msg.role === 'user' ? <User className="w-4 h-4 text-white" /> : <Bot className="w-4 h-4 text-white" />}
                   </div>
@@ -217,7 +262,7 @@ export default function ChatPage() {
             );
           })}
 
-          {/* Loading Indicator (Waiting for First Token) */}
+          {/* Loading Indicator */}
           {isWaitingForStream && (
             <div className="flex justify-start animate-fade-in">
               <div className="flex flex-row max-w-[75%]">
@@ -247,7 +292,7 @@ export default function ChatPage() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask a question about your document(s)..."
+              placeholder={selectedScope === 'All Documents' ? "Ask a question about your entire database..." : `Ask a question about ${selectedScope}...`}
               className="flex-1 bg-transparent border-none outline-none px-4 py-3 text-white placeholder:text-zinc-500"
               disabled={isWaitingForStream || isStreaming}
             />

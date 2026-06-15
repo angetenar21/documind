@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X, Trash2, Database, Loader2, File } from 'lucide-react';
 import axios from 'axios';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 export default function LibraryModal({ isOpen, onClose }) {
   const [documents, setDocuments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -16,7 +18,7 @@ export default function LibraryModal({ isOpen, onClose }) {
   const fetchDocuments = async () => {
     setIsLoading(true);
     try {
-      const response = await axios.get('http://localhost:8000/documents');
+      const response = await axios.get(`${API_BASE_URL}/documents`);
       setDocuments(response.data.documents || []);
     } catch (err) {
       console.error('Failed to fetch documents', err);
@@ -28,7 +30,7 @@ export default function LibraryModal({ isOpen, onClose }) {
   const handleDelete = async (filename) => {
     setDeletingFile(filename);
     try {
-      await axios.delete(`http://localhost:8000/documents/${filename}`);
+      await axios.delete(`${API_BASE_URL}/documents/${filename}`);
       setDocuments(documents.filter(doc => doc !== filename));
     } catch (err) {
       console.error('Failed to delete document', err);

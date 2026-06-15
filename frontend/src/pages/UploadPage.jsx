@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { UploadCloud, File, Loader2, ArrowRight, X, MessageSquare } from 'lucide-react';
 import axios from 'axios';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 export default function UploadPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [files, setFiles] = useState([]);
@@ -16,7 +18,7 @@ export default function UploadPage() {
   useEffect(() => {
     const checkDatabase = async () => {
       try {
-        const response = await axios.get('http://localhost:8000/documents');
+        const response = await axios.get(`${API_BASE_URL}/documents`);
         if (response.data.documents && response.data.documents.length > 0) {
           setHasExistingDocs(true);
         }
@@ -78,7 +80,7 @@ export default function UploadPage() {
     });
 
     try {
-      const response = await axios.post('http://localhost:8000/upload', formData, {
+      const response = await axios.post(`${API_BASE_URL}/upload`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

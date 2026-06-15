@@ -1,8 +1,23 @@
 import chromadb
+from chromadb.config import Settings
 from typing import List, Dict, Any
-from config import CHROMA_PATH
+from config import CHROMA_PATH, CHROMA_HOST, CHROMA_API_KEY, CHROMA_TENANT, CHROMA_DATABASE
 
-chroma_client = chromadb.PersistentClient(path=CHROMA_PATH)
+if CHROMA_HOST:
+    # Use remote hosted ChromaDB on Render/ChromaCloud
+    chroma_client = chromadb.HttpClient(
+        host=CHROMA_HOST,
+        tenant=CHROMA_TENANT,
+        database=CHROMA_DATABASE,
+        settings=Settings(
+            chroma_client_auth_provider="chromadb.auth.token_auth.TokenAuthClientProvider",
+            chroma_client_auth_credentials=CHROMA_API_KEY
+        )
+    )
+else:
+    # Fallback to local persistent client
+    chroma_client = chromadb.PersistentClient(path=CHROMA_PATH)
+
 collection = chroma_client.get_or_create_collection(name="document_chunks")
 
 def add_chunks_to_db(chunks: List[Dict[str, Any]], embeddings: List[List[float]], filename: str):
@@ -21,15 +36,20 @@ def add_chunks_to_db(chunks: List[Dict[str, Any]], embeddings: List[List[float]]
         metadatas=metadatas
     )
 
-def query_db(query_embedding: List[float], n_results: int = 5) -> List[Dict[str, Any]]:
+def query_db(query_embedding: List[float], n_results: int = 5, filename: str = None) -> List[Dict[str, Any]]:
     """
     Searches ChromaDB for the chunks most similar to our query embedding.
-    Returns a list of dictionaries containing text, filename, and page.
+    If filename is provided, scopes the search to only that document.
     """
-    results = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=n_results
-    )
+    query_args = {
+        "query_embeddings": [query_embedding],
+        "n_results": n_results
+    }
+    
+    if filename and filename != "All Documents":
+        query_args["where"] = {"filename": filename}
+        
+    results = collection.query(**query_args)
     
     matched_chunks = []
     if results["documents"] and results["documents"][0]:

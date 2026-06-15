@@ -2,7 +2,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 import json
 
 from services.pdf_parser import extract_text_from_pdf, chunk_text
@@ -24,6 +24,7 @@ app.add_middleware(
 
 class QueryRequest(BaseModel):
     question: str
+    target_filename: Optional[str] = None
 
 @app.post("/upload")
 async def upload_documents(files: List[UploadFile] = File(...)):
@@ -67,8 +68,9 @@ async def query_document(request: QueryRequest):
     """
     try:
         question_embedding = get_embedding(request.question)
-        # Increased to 10 chunks for better context since we changed chunking strategy
-        context_chunks = query_db(question_embedding, n_results=10) 
+        # Pass target_filename to scope the vector search
+        context_chunks = query_db(question_embedding, n_results=10, filename=request.target_filename) 
+ 
         
         async def event_generator():
             # 1. Send sources first as a special JSON event
