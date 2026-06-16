@@ -8,13 +8,14 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 export default function ChatPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const filename = location.state?.filename || 'Database Documents';
+  const initialScope = location.state?.filename || 'All Documents';
+  const displayName = initialScope === 'All Documents' ? 'Database Documents' : initialScope;
 
   const [messages, setMessages] = useState([
     {
       id: 1,
       role: 'ai',
-      content: `Hello! I'm ready to answer questions about: ${filename}. What would you like to know?`,
+      content: `Hello! I'm ready to answer questions about: ${displayName}. What would you like to know?`,
       sources: []
     }
   ]);
@@ -23,7 +24,7 @@ export default function ChatPage() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [availableDocs, setAvailableDocs] = useState([]);
-  const [selectedScope, setSelectedScope] = useState('All Documents');
+  const [selectedScope, setSelectedScope] = useState(initialScope);
   
   const messagesEndRef = useRef(null);
 
@@ -144,18 +145,45 @@ export default function ChatPage() {
     }
   };
 
-  const getUniqueSources = (sources) => {
+  const getGroupedSources = (sources) => {
     if (!sources) return [];
-    const unique = [];
-    const seen = new Set();
+    
+    // Group pages by filename
+    const grouped = {};
     sources.forEach(src => {
-      const key = `${src.filename}-${src.page}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        unique.push(src);
+      if (!grouped[src.filename]) {
+        grouped[src.filename] = new Set();
       }
+      grouped[src.filename].add(src.page);
     });
-    return unique;
+    
+    // Format into an array of objects with page ranges
+    return Object.entries(grouped).map(([filename, pagesSet]) => {
+      const pages = Array.from(pagesSet).sort((a, b) => a - b);
+      
+      let pageRanges = [];
+      let start = pages[0];
+      let prev = start;
+      
+      for (let i = 1; i <= pages.length; i++) {
+        if (pages[i] === prev + 1) {
+          prev = pages[i];
+        } else {
+          if (start === prev) {
+            pageRanges.push(`${start}`);
+          } else {
+            pageRanges.push(`${start}-${prev}`);
+          }
+          start = pages[i];
+          prev = start;
+        }
+      }
+      
+      return {
+        filename,
+        pageString: pageRanges.join(', ')
+      };
+    });
   };
 
   return (
@@ -177,7 +205,7 @@ export default function ChatPage() {
           </h1>
           <p className="text-xs text-green-400 flex items-center mt-0.5 truncate max-w-[300px] sm:max-w-[500px]">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse mr-1.5 flex-shrink-0"></span>
-            <span className="truncate">Reading: {filename}</span>
+            <span className="truncate">Reading: {selectedScope === 'All Documents' ? 'Database Documents' : selectedScope}</span>
           </p>
         </div>
 
@@ -212,7 +240,7 @@ export default function ChatPage() {
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 scroll-smooth">
         <div className="max-w-4xl mx-auto space-y-6 w-full pb-32">
           {messages.map((msg) => {
-            const uniqueSources = getUniqueSources(msg.sources);
+            const groupedSources = getGroupedSources(msg.sources);
             
             return (
               <div 
@@ -247,16 +275,16 @@ export default function ChatPage() {
                     </div>
 
                     {/* Citations Pill Box */}
-                    {uniqueSources.length > 0 && (
+                    {groupedSources.length > 0 && (
                       <div className="mt-4 pt-3 border-t border-white/5 flex flex-wrap gap-2">
-                        {uniqueSources.map((src, idx) => (
+                        {groupedSources.map((src, idx) => (
                           <div 
                             key={idx} 
                             className="flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-[11px] text-zinc-400 select-none"
                           >
-                            <span className="truncate max-w-[150px]">{src.filename}</span>
+                            <span className="truncate max-w-[200px]">{src.filename}</span>
                             <span className="text-zinc-600">•</span>
-                            <span className="text-green-400/80">Pg {src.page}</span>
+                            <span className="text-green-400/80">Pg {src.pageString}</span>
                           </div>
                         ))}
                       </div>

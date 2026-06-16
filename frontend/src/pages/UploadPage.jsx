@@ -87,8 +87,8 @@ export default function UploadPage() {
       });
 
       if (response.status === 200) {
-        const filenames = files.map(f => f.name).join(', ');
-        navigate('/chat', { state: { filename: filenames } });
+        const scope = files.length === 1 ? files[0].name : 'All Documents';
+        navigate('/chat', { state: { filename: scope } });
       }
     } catch (err) {
       console.error(err);
