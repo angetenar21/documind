@@ -36,5 +36,5 @@ async def generate_answer_stream(question: str, context_chunks: List[Dict[str, A
     )
     
     for chunk in stream:
-        if chunk.choices[0].delta.content:
+        if chunk.choices and len(chunk.choices) > 0 and chunk.choices[0].delta.content:
             yield chunk.choices[0].delta.content
