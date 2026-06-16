@@ -3,7 +3,7 @@ uvicorn
 python-multipart
 chromadb
 PyMuPDF
-sentence-transformers
+requests
 pydantic
 groq
 python-dotenv
