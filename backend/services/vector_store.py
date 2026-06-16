@@ -3,16 +3,19 @@ from chromadb.config import Settings
 from typing import List, Dict, Any
 from config import CHROMA_PATH, CHROMA_HOST, CHROMA_API_KEY, CHROMA_TENANT, CHROMA_DATABASE
 
-if CHROMA_HOST:
-    # Use remote hosted ChromaDB on Render/ChromaCloud
+if CHROMA_API_KEY:
+    # Use remote hosted Chroma Cloud using CloudClient (supports newer ChromaDB versions)
+    chroma_client = chromadb.CloudClient(
+        tenant=CHROMA_TENANT,
+        database=CHROMA_DATABASE,
+        api_key=CHROMA_API_KEY
+    )
+elif CHROMA_HOST:
+    # Fallback to standard HttpClient without auth for other remote setups
     chroma_client = chromadb.HttpClient(
         host=CHROMA_HOST,
         tenant=CHROMA_TENANT,
-        database=CHROMA_DATABASE,
-        settings=Settings(
-            chroma_client_auth_provider="chromadb.auth.token_auth.TokenAuthClientProvider",
-            chroma_client_auth_credentials=CHROMA_API_KEY
-        )
+        database=CHROMA_DATABASE
     )
 else:
     # Fallback to local persistent client
