@@ -94,13 +94,18 @@ export default function ChatPage() {
       const decoder = new TextDecoder('utf-8');
       let aiMessageContent = '';
       let currentSources = [];
+      let buffer = '';
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        
+        // The last line might be incomplete, save it for the next chunk
+        buffer = lines.pop() || '';
+        
         
         for (const line of lines) {
           if (line.startsWith('data: ')) {
