@@ -73,29 +73,37 @@ async def query_document(request: QueryRequest):
  
         
         async def event_generator():
-            # 1. Send sources first as a special JSON event
-            sources_event = json.dumps({
-                "type": "sources", 
-                "data": context_chunks
-            })
-            yield f"data: {sources_event}\n\n"
-            
-            if not context_chunks:
-                # Provide a quick fallback if database is empty
-                fallback_event = json.dumps({
-                    "type": "token", 
-                    "data": "I haven't processed any documents yet! Please upload a PDF first."
+            try:
+                # 1. Send sources first as a special JSON event
+                sources_event = json.dumps({
+                    "type": "sources", 
+                    "data": context_chunks
                 })
-                yield f"data: {fallback_event}\n\n"
-                return
+                yield f"data: {sources_event}\n\n"
                 
-            # 2. Generate and yield answer tokens sequentially
-            async for token in generate_answer_stream(request.question, context_chunks):
-                token_event = json.dumps({
+                if not context_chunks:
+                    # Provide a quick fallback if database is empty
+                    fallback_event = json.dumps({
+                        "type": "token", 
+                        "data": "I haven't processed any documents yet! Please upload a PDF first."
+                    })
+                    yield f"data: {fallback_event}\n\n"
+                    return
+                    
+                # 2. Generate and yield answer tokens sequentially
+                async for token in generate_answer_stream(request.question, context_chunks):
+                    token_event = json.dumps({
+                        "type": "token", 
+                        "data": token
+                    })
+                    yield f"data: {token_event}\n\n"
+            except Exception as e:
+                # If an error happens while streaming, send it to the frontend
+                error_event = json.dumps({
                     "type": "token", 
-                    "data": token
+                    "data": f"\n\n[Backend Error]: {str(e)}"
                 })
-                yield f"data: {token_event}\n\n"
+                yield f"data: {error_event}\n\n"
                 
         return StreamingResponse(event_generator(), media_type="text/event-stream")
         
